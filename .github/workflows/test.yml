@@ -3,10 +3,8 @@ name: Mixed inputs
 on:
   workflow_dispatch:
     inputs:
-      logLevel:
-        
       tags:
-        description: 'Test scenario tags'
+        description: 'Enter a Repo Name:'
         required: true
         type: string
       
