@@ -6,9 +6,6 @@ on:
       name:
         type: choice
         description: Repository Name
-        options: 
-        - monalisa
-        - cschleiden
       message:
         required: true
       use-emoji:
