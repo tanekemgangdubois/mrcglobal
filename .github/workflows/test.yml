@@ -9,7 +9,7 @@ jobs:
     steps:
     - name: Get Repo Name Input
       id: repo_name_input
-      run: echo "::set-output name=repo_name::${{ github.event.inputs.repo_name }}"
+      run: echo "::set-env name=repo_name::${{ github.event.inputs.repo_name }}"
     - name: Create New Repo
       uses: peter-evans/create-pull-request@v3
       with:
