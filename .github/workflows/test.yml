@@ -1,42 +1,26 @@
-name: Flutter_Web_On_Demand
+name: Mixed inputs
 
 on:
   workflow_dispatch:
     inputs:
-      flutter_version:
-        description: 'Framework version'
+      name:
+        type: choice
+        description: Who to greet
+        options: 
+        - monalisa
+        - cschleiden
+      message:
         required: true
-        default: '2.5.3'
-      publish_artifacts:
-        description: 'Publish artifacts'
-        required: true
-        default: 'true'
+      use-emoji:
+        type: boolean
+        description: Include 🎉🤣 emojis
+      environment:
+        type: environment
 
 jobs:
-  build_web:
+  greet:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout the code
-        uses: actions/checkout@v2
-
-      - name: Set Flutter version
-        uses: subosito/flutter-action@v2.2.0
-        with:
-          flutter-version: '${{ github.event.inputs.flutter_version }}'
-
-      - name: Display Flutter version
-        run: flutter --version
-
-      - name: Get packages
-        run: flutter pub get
-
-      - name: Build Flutter Web
-        run: flutter build web --release
-
-      - if: github.event.inputs.publish_artifacts == 'true'
-        name: Publish Artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: artifacts
-          path: build/web
+    - name: Send greeting
+      run: echo "${{ github.event.inputs.message }} ${{ fromJSON('["", "🥳"]')[github.event.inputs.use-emoji == 'true'] }} ${{ github.event.inputs.name }}"
