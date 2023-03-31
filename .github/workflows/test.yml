@@ -1,0 +1,25 @@
+name: Create New Repository
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create_repo:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Get Repo Name Input
+      id: repo_name_input
+      run: echo "::set-output name=repo_name::${{ github.event.inputs.repo_name }}"
+    - name: Create New Repo
+      uses: peter-evans/create-pull-request@v3
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "Create new repo"
+        title: "Create new repo"
+        branch: main
+        body: "New repository created"
+        branch-suffix: '-${{ github.sha }}'
+        delete-branch: true
+        base: main
+        labels: "new repository"
+        repo: ektech/${{ steps.repo_name_input.outputs.repo_name }}"
