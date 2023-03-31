@@ -13,7 +13,7 @@ jobs:
     - name: Create New Repo
       uses: peter-evans/create-pull-request@v3
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.GITH_TOKEN }}
         commit-message: "Create new repo"
         title: "Create new repo"
         branch: main
