@@ -5,7 +5,7 @@ on:
     inputs:
       name:
         type: choice
-        description: Enter the Repo Name:
+        description: Who to greet
         options: 
         - monalisa
         - cschleiden
