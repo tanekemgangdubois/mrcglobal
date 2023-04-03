@@ -1,16 +1,134 @@
-name: Mixed inputs
+name: Create Repository and Make configurations
 
 on:
   workflow_dispatch:
     inputs:
-      tags:
-        description: 'Enter a Repo Name:'
+      repo_name:
+        description: 'New Repo Name'
         required: true
-        type: string
+env:
+  TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
-  print-tag:
+  create-repo:
     runs-on: ubuntu-latest
-    if:  ${{ inputs.tags }} 
+
     steps:
-      - name: Print the input tag to STDOUT
-        run: echo  The tags are ${{ inputs.tags }} 
+      - name: Create Repository 
+        run: |
+          curl -X POST \
+          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          -d '{"name": "${{ github.event.inputs.repo_name }}      -H "Accept: application/vnd.github+json" \
+          https://api.github.com/orgs/mrcglobal/repos
+          echo "Create repo response: ${{ github.event.inputs.repo_name }}"
+
+      - name: Initialize Git Repository
+        run: |
+          find . -type f | grep -i "/.git" | xargs rm
+          git init
+          cp /home/mrcg_mus_jenkins@mcjunkinredman.com/jenkins/jenkins/workspace/mulesoft/mule-mulesoftrepo/init/{CODEOWNERS,README.md,.gitignore} .
+          git add .
+          git commit -m "init commit"
+          git remote add origin https://mrcg-mus-jenkins:${{ secrets.GITHUB_TOKEN }}@github.com/mrcglobal/${{ env.repo }}.git
+          git remote -v
+          git push -u origin master
+          rm -rf *
+      - name: Set up Git credentials
+        uses: actions/setup-git@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add pull permission to team 3101339
+        run: |
+          curl -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            --header "Content-Type: application/json" \
+            --request PUT \
+            --data '{"permission": "pull" }' \
+            https://api.github.com/teams/3101339/repos/${{ github.repository_owner }}/${{ github.event.inputs.repo_name }}
+
+      - name: Add push permission to team 3101338
+        run: |
+          curl -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            --header "Content-Type: application/json" \
+            --request PUT \
+            --data '{"permission": "push" }' \
+            https://api.github.com/teams/3101338/repos/${{ github.repository_owner }}/${{ github.event.inputs.repo_name }}
+
+      - name: Add admin permission to team 3101336
+        run: |
+          curl -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            --header "Content-Type: application/json" \
+            --request PUT \
+            --data '{"permission": "admin" }' \
+            https://api.github.com/teams/3101336/repos/${{ github.repository_owner }}/${{ github.event.inputs.repo_name }}
+
+      - name: Set branch
+        run: |
+          git branch -M master
+          git checkout -b test
+          git push -u origin test
+          git checkout -b development
+          git push -u origin development
+          git checkout -b production
+          git push -u origin production
+          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            --header "Content-Type: application/json" \
+            --request PATCH \
+            --data '{"default_branch": "development"}' \
+            https://api.github.com/repos/${{ github.repository_owner }}/${{ github.event.inputs.repo_name }}
+        env:
+          mrcgmusjenkins: ${{ secrets.MRCGJENKINS }}
+          REPO: ${{ github.event.inputs.repo_name }}
+
+      - name: Protect branches
+        env:
+          REPO: ${{ github.event.inputs.repo_name }}
+        run: |
+          curl \
+            -H "Accept: application/vnd.github.luke-cage-preview+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            --header "Content-Type: application/json" \
+            --request PUT \
+            --data '{"enforce_admins": true, "required_status_checks": null, "required_pull_request_reviews":{"dismiss_stale_reviews": true, "required_approving_review_count": 2, "require_code_owner_reviews": true }, "restrictions": null }' \
+            https://api.github.com/repos/mrcglobal/${{ env.REPO }}/branches/production/protection
+          curl \
+            -H "Accept: application/vnd.github.luke-cage-preview+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            --header "Content-Type: application/json" \
+            --request PUT \
+            --data '{"enforce_admins": true, "required_status_checks": null, "required_pull_request_reviews":{"dismiss_stale_reviews": true, "required_approving_review_count": 1, "require_code_owner_reviews": true }, "restrictions": null }' \
+            https://api.github.com/repos/mrcglobal/${{ env.REPO }}/branches/development/protection
+          curl \
+            -H "Accept: application/vnd.github.luke-cage-preview+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            --header "Content-Type: application/json" \
+            --request PUT \
+            --data '{"enforce_admins": true, "required_status_checks": null, "required_pull_request_reviews":{"dismiss_stale_reviews": true, "required_approving_review_count": 1, "require_code_owner_reviews": true }, "restrictions": null }' \
+            https://api.github.com/repos/mrcglobal/${{ env.REPO }}/branches/test/protection
+          curl \
+            -H "Accept: application/vnd.github.luke-cage-preview+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            --header "Content-Type: application/json" \
+            --request PUT \
+            --data '{"enforce_admins": true, "required_status_checks": null, "required_pull_request_reviews":{"dismiss_stale_reviews": true, "required_approving_review_count": 1, "require_code_owner_reviews": true }, "restrictions": null }' \
+            https://api.github.com/repos/mrcglobal/${{ env.REPO }}/branches/master/protection
+          curl \
+            -H "Accept: application/vnd.github.mercy-preview+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            --header "Content-Type: application/json" \
+            --request PUT \
+            --data '{"names": ["mulesoft","api"] }' \
+            https://api.github.com/repos/mrcglobal/${{ env.REPO }}/topics
+      - name: Set Webhooks
+        env:
+          MRCGMUSJENKINS: ${{ secrets.MRCGJENKINS }}
+        run: |
+          curl -H "Accept: application/vnd.github.mercy-preview+json" \
+            -H "Authorization: token ${{ env.MRCGMUSJENKINS }}" \
+            -H "Content-Type: application/json" \
+            -X POST \
+            -d '{"name": "web", "active": true, "events": ["push"], "config": {"url": "https://jenkinsprod-webhook.mrcglobal.com/github-webhook/", "content_type": "json"} }' \
+            https://api.github.com/repos/mrcglobal/${{ github.repository }}/hooks
