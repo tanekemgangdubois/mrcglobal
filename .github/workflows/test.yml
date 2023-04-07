@@ -1,4 +1,4 @@
-name: Create Repository and Make configurations
+name: Create Baseline Repo
 
 on:
   workflow_dispatch:
@@ -6,129 +6,170 @@ on:
       repo_name:
         description: 'New Repo Name'
         required: true
-env:
-  TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+env:  
+    org_name: tanekemgang # Your Organization Name
+    base_repo: mrcglobal # Your Github Base Repository Names
+    webhook: https://jenkinsprod-webhook.mrcglobal.com/github-webhook/
 
 jobs:
-  create-repo:
+  create-repository:
     runs-on: ubuntu-latest
-
+    name: Creating Repository
     steps:
-      - name: Create Repository 
+      - name: Check if repository exists
         run: |
-          curl -X POST \
-          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          -d '{"name": "${{ github.event.inputs.repo_name }}      -H "Accept: application/vnd.github+json" \
-          https://api.github.com/orgs/mrcglobal/repos
-          echo "Create repo response: ${{ github.event.inputs.repo_name }}"
+          REPO_NAME="${{ github.event.inputs.repo_name }}"
+          ORG_NAME="${{ env.org_name }}"
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/$ORG_NAME/$REPO_NAME)
+          if [ $RESPONSE -eq 200 ]; then
+            echo "REPO_EXISTS=true" >> $GITHUB_ENV
+          else
+            echo "REPO_EXISTS=false" >> $GITHUB_ENV
+          fi
 
-      - name: Initialize Git Repository
+      - name: Create new public repository
+        if: env.REPO_EXISTS == 'false'
         run: |
-          find . -type f | grep -i "/.git" | xargs rm
-          git init
-          cp /home/mrcg_mus_jenkins@mcjunkinredman.com/jenkins/jenkins/workspace/mulesoft/mule-mulesoftrepo/init/{CODEOWNERS,README.md,.gitignore} .
-          git add .
-          git commit -m "init commit"
-          git remote add origin https://mrcg-mus-jenkins:${{ secrets.GITHUB_TOKEN }}@github.com/mrcglobal/${{ env.repo }}.git
-          git remote -v
-          git push -u origin master
-          rm -rf *
-      - name: Set up Git credentials
-        uses: actions/setup-git@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          curl -X POST -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+          -d '{"name": "${{ github.event.inputs.repo_name }}", "private": true, "default_branch": "master"}' \
+          https://api.github.com/orgs/${{ env.org_name }}/repos
 
-      - name: Add pull permission to team 3101339
+      - name: Initialize repository
         run: |
-          curl -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            --header "Content-Type: application/json" \
-            --request PUT \
-            --data '{"permission": "pull" }' \
-            https://api.github.com/teams/3101339/repos/${{ github.repository_owner }}/${{ github.event.inputs.repo_name }}
+          curl -X POST -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/git/refs \
+          -d '{"ref": "refs/heads/main", "sha": "4b825dc642cb6eb9a060e54bf8d69288fbee4904"}'
 
-      - name: Add push permission to team 3101338
+      - name: WORK DONE FOR README.md File
         run: |
-          curl -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            --header "Content-Type: application/json" \
-            --request PUT \
-            --data '{"permission": "push" }' \
-            https://api.github.com/teams/3101338/repos/${{ github.repository_owner }}/${{ github.event.inputs.repo_name }}
+          curl -O https://raw.githubusercontent.com/${{ env.org_name }}/${{ env.base_repo }}/main/README.md
+          curl -X PUT -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+               -H "Content-Type: application/json" \
+               -d '{"message": "Add README.md", "content": "'"$(base64 README.md)"'"}' \
+               https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/contents/README.md       
+          curl -X POST -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+          https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/contents/README.md 
+          curl -X POST -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+          https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/git/refs \
+          -d '{"ref": "refs/heads/main", "sha": "'"$(curl -H "Authorization: token ${{ secrets.BASELINE_REPO }}" https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/git/refs/heads/main | jq -r '.object.sha')"'", "force": true}'
 
-      - name: Add admin permission to team 3101336
+      - name: WORK DONE FOR .GITIGNORE File
         run: |
-          curl -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            --header "Content-Type: application/json" \
-            --request PUT \
-            --data '{"permission": "admin" }' \
-            https://api.github.com/teams/3101336/repos/${{ github.repository_owner }}/${{ github.event.inputs.repo_name }}
+          curl -O https://raw.githubusercontent.com/${{ env.org_name }}/${{ env.base_repo }}/main/.gitignore
+          curl -X PUT -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+               -H "Content-Type: application/json" \
+               -d '{"message": "Add .gitignore", "content": "'"$(base64 .gitignore)"'"}' \
+               https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/contents/.gitignore       
+          curl -X POST -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+          -d '{"message": "Add .gitignore", "content": "'"$(base64 .gitignore)"'", "branch": "main"}' \
+          https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/contents/.gitignore 
+          curl -X POST -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+          https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/git/refs \
+          -d '{"ref": "refs/heads/main", "sha": "'"$(curl -H "Authorization: token ${{ secrets.BASELINE_REPO }}" https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/git/refs/heads/main | jq -r '.object.sha')"'", "force": true}'
 
-      - name: Set branch
+      - name: WORK DONE FOR CODEOWNERS File
         run: |
-          git branch -M master
-          git checkout -b test
-          git push -u origin test
-          git checkout -b development
-          git push -u origin development
-          git checkout -b production
-          git push -u origin production
-          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            --header "Content-Type: application/json" \
-            --request PATCH \
-            --data '{"default_branch": "development"}' \
-            https://api.github.com/repos/${{ github.repository_owner }}/${{ github.event.inputs.repo_name }}
-        env:
-          mrcgmusjenkins: ${{ secrets.MRCGJENKINS }}
-          REPO: ${{ github.event.inputs.repo_name }}
+          curl -O https://raw.githubusercontent.com/${{ env.org_name }}/${{ env.base_repo }}/main/CODEOWNERS
+          curl -X PUT -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+               -H "Content-Type: application/json" \
+               -d '{"message": "Add CODEOWNERS", "content": "'"$(base64 CODEOWNERS)"'"}' \
+               https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/contents/CODEOWNERS       
+          curl -X POST -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+               -d '{"message": "Add CODEOWNERS", "content": "'"$(base64 CODEOWNERS)"'", "branch": "main"}' \
+               https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/contents/CODEOWNERS 
+          curl -X POST -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+               https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/git/refs \
+               -d '{"ref": "refs/heads/main", "sha": "'"$(curl -H "Authorization: token ${{ secrets.BASELINE_REPO }}" https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/git/refs/heads/main | jq -r '.object.sha')"'", "force": true}'
+  
+  configure-repository:
+    needs: create-repository
+    runs-on: ubuntu-latest
+    name: Configuring Repository
+    steps:
+      - name: Get SHA of master branch
+        run: |
+          MASTER_SHA=$(curl -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+              https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/git/refs/heads/main | jq -r '.object.sha')
+          echo "MASTER_SHA=$MASTER_SHA" >> $GITHUB_ENV
 
-      - name: Protect branches
-        env:
-          REPO: ${{ github.event.inputs.repo_name }}
+      - name: Make Other Branched Too
         run: |
-          curl \
-            -H "Accept: application/vnd.github.luke-cage-preview+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            --header "Content-Type: application/json" \
-            --request PUT \
-            --data '{"enforce_admins": true, "required_status_checks": null, "required_pull_request_reviews":{"dismiss_stale_reviews": true, "required_approving_review_count": 2, "require_code_owner_reviews": true }, "restrictions": null }' \
-            https://api.github.com/repos/mrcglobal/${{ env.REPO }}/branches/production/protection
-          curl \
-            -H "Accept: application/vnd.github.luke-cage-preview+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            --header "Content-Type: application/json" \
-            --request PUT \
-            --data '{"enforce_admins": true, "required_status_checks": null, "required_pull_request_reviews":{"dismiss_stale_reviews": true, "required_approving_review_count": 1, "require_code_owner_reviews": true }, "restrictions": null }' \
-            https://api.github.com/repos/mrcglobal/${{ env.REPO }}/branches/development/protection
-          curl \
-            -H "Accept: application/vnd.github.luke-cage-preview+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            --header "Content-Type: application/json" \
-            --request PUT \
-            --data '{"enforce_admins": true, "required_status_checks": null, "required_pull_request_reviews":{"dismiss_stale_reviews": true, "required_approving_review_count": 1, "require_code_owner_reviews": true }, "restrictions": null }' \
-            https://api.github.com/repos/mrcglobal/${{ env.REPO }}/branches/test/protection
-          curl \
-            -H "Accept: application/vnd.github.luke-cage-preview+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            --header "Content-Type: application/json" \
-            --request PUT \
-            --data '{"enforce_admins": true, "required_status_checks": null, "required_pull_request_reviews":{"dismiss_stale_reviews": true, "required_approving_review_count": 1, "require_code_owner_reviews": true }, "restrictions": null }' \
-            https://api.github.com/repos/mrcglobal/${{ env.REPO }}/branches/master/protection
-          curl \
-            -H "Accept: application/vnd.github.mercy-preview+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            --header "Content-Type: application/json" \
-            --request PUT \
-            --data '{"names": ["mulesoft","api"] }' \
-            https://api.github.com/repos/mrcglobal/${{ env.REPO }}/topics
-      - name: Set Webhooks
-        env:
-          MRCGMUSJENKINS: ${{ secrets.MRCGJENKINS }}
+          curl -X POST -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/git/refs \
+               -d '{"ref": "refs/heads/master", "sha": "${{env.MASTER_SHA}}"}'
+          curl -X POST -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/git/refs \
+               -d '{"ref": "refs/heads/development", "sha": "${{env.MASTER_SHA}}"}'
+           curl -X POST -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/git/refs \
+               -d '{"ref": "refs/heads/test", "sha": "${{env.MASTER_SHA}}"}'
+           curl -X POST -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/git/refs \
+               -d '{"ref": "refs/heads/production", "sha": "${{env.MASTER_SHA}}"}'
+            curl -X DELETE -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+               https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/git/refs/heads/main
+            curl -X PATCH -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+              -d '{"default_branch": "master"}' \
+              https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}
+      - name: 3 Teams Configuration
         run: |
-          curl -H "Accept: application/vnd.github.mercy-preview+json" \
-            -H "Authorization: token ${{ env.MRCGMUSJENKINS }}" \
-            -H "Content-Type: application/json" \
-            -X POST \
-            -d '{"name": "web", "active": true, "events": ["push"], "config": {"url": "https://jenkinsprod-webhook.mrcglobal.com/github-webhook/", "content_type": "json"} }' \
-            https://api.github.com/repos/mrcglobal/${{ github.repository }}/hooks
+          curl -X PATCH -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/orgs/${{ env.org_name }}/teams/mulesoft-admin/ \
+               -d '{"permission": "admin"}'
+
+          curl -X PATCH -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/orgs/${{ env.org_name }}/teams/mulesoft-ro/ \
+               -d '{"permission": "read"}'
+
+          curl -X PATCH -H "Authorization: token ${{ secrets.BASELINE_REPO }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/orgs/${{ env.org_name }}/teams/mulesoft-rw/ \
+               -d '{"permission": "write"}'
+  set-branch-protection:
+    needs: configure-repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set Branch Protection Rules
+        run: |
+          # Set branch protection rules for master
+          curl -L \
+            -X PUT \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: token ${{ secrets.BASELINE_REPO }}"\
+            https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/branches/master/protection \
+            -d '{"required_pull_request_reviews": {"dismiss_stale_reviews": true, "require_code_owner_reviews": true, "required_approving_review_count": 1}, "enforce_admins": true, "restrictions": {"users": [], "teams": [], "apps": []}, "required_status_checks": null, "allow_force_pushes": false, "allow_deletions": false}'
+          curl -L \
+            -X PUT \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: token ${{ secrets.BASELINE_REPO }}"\
+            https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/branches/test/protection \
+            -d '{"required_pull_request_reviews": {"dismiss_stale_reviews": true, "require_code_owner_reviews": true, "required_approving_review_count": 1}, "enforce_admins": true, "restrictions": {"users": [], "teams": [], "apps": []}, "required_status_checks": null, "allow_force_pushes": false, "allow_deletions": false}'
+          curl -L \
+            -X PUT \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: token ${{ secrets.BASELINE_REPO }}"\
+            https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/branches/deployment/protection \
+            -d '{"required_pull_request_reviews": {"dismiss_stale_reviews": true, "require_code_owner_reviews": true, "required_approving_review_count": 1}, "enforce_admins": true, "restrictions": {"users": [], "teams": [], "apps": []}, "required_status_checks": null, "allow_force_pushes": false, "allow_deletions": false}'
+          curl -L \
+            -X PUT \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: token ${{ secrets.BASELINE_REPO }}"\
+            https://api.github.com/repos/${{ env.org_name }}/${{ github.event.inputs.repo_name }}/branches/production/protection \
+            -d '{"required_pull_request_reviews": {"dismiss_stale_reviews": true, "require_code_owner_reviews": true, "required_approving_review_count": 2}, "enforce_admins": true, "restrictions": {"users": [], "teams": [], "apps": []}, "required_status_checks": null, "allow_force_pushes": false, "allow_deletions": false}'   
+  send_payload:
+    needs: set-branch-protection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Payload via CURL
+        run: |
+          curl -X POST -H "Content-Type: application/json" -d '{"message": "Hello, webhook!"}' ${{env.webhook}}
