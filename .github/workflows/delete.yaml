@@ -14,7 +14,7 @@ jobs:
         run: |
           runs=$(curl -s -X GET \
             -H "Authorization: token ${{ secrets.TANEKEMGANG }}" \
-            "https://api.github.com/repos/tanekemgangdubois/mrcglobal/actions/runs")
+            "https://api.github.com/repos/tanekemgangdubois/githubactions3/actions/runs")
 
           # Filter the workflow runs based on your criteria (e.g., delete runs older than 1 days)
           cutoff_date=$(date -u -d '1 days ago' +'%Y-%m-%dT%H:%M:%SZ')
@@ -25,5 +25,5 @@ jobs:
             echo "Deleting workflow run ID: $run_id"
             curl -s -X DELETE \
               -H "Authorization: token ${{ secrets.TANEKEMGANG }}" \
-              "https://api.github.com/repos/tanekemgangdubois/mrcglobal/actions/runs/$run_id"
+              "https://api.github.com/repos/tanekemgangdubois/githubactions3/actions/runs/$run_id"
           done
