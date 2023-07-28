@@ -26,11 +26,11 @@ jobs:
       - name: Fetch all workflow runs
         id: get_runs
         run: |
-          TOKEN="${{ secrets.TANEKEMGANG }}"
+          
           PAGE=1
           RUNS=""
           while true; do
-            OUTPUT=$(curl -s -X GET "https://api.github.com/repos/tanekemgangdubois/mrcglobal1/actions/runs?page=${PAGE}&per_page=100" -H "Authorization: Bearer $TOKEN")
+            OUTPUT=$(curl -s -X GET "https://api.github.com/repos/tanekemgangdubois/mrcglobal1/actions/runs?page=1&per_page=100" -H "Authorization: Bearer ${{ secrets.TANEKEMGANG }}")
             if [ "$(echo $OUTPUT | jq length)" -eq 0 ]; then
               break
             fi
@@ -45,5 +45,5 @@ jobs:
           TOKEN="${{ secrets.TANEKEMGANG }}"
           RUNS=$(echo ${{ steps.get_runs.outputs.runs }} | jq '.[].id')
           for run_id in $RUNS; do
-            curl -X DELETE "https://api.github.com/repos/tanekemgangdubois/mrcglobal1/actions/runs/${run_id}" -H "Authorization: Bearer $TOKEN"
+            curl -X DELETE "https://api.github.com/repos/tanekemgangdubois/mrcglobal1/actions/runs/${run_id}" -H "Authorization: Bearer ${{ secrets.TANEKEMGANG }}"
           done
