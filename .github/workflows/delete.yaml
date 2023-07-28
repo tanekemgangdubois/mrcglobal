@@ -13,3 +13,5 @@ jobs:
           gh api repos/tanekemgangdubois/mrcglobal1/actions/runs \
           --paginate -q '.workflow_runs[] | select(.head_branch != "main") | "\(.id)"' | \
           xargs -n1 -I % gh api repos/tanekemgangdubois/mrcglobal1/actions/runs/% -X DELETE
+        env:
+         GH_TOKEN: ${{ github.token }}
