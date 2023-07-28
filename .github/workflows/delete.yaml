@@ -11,5 +11,5 @@ jobs:
       - name: jou
         run: |
           gh api repos/tanekemgangdubois/mrcglobal1/actions/runs \
-          --paginate -q '.workflow_runs[] | select(.head_branch != "master") | "\(.id)"' | \
-          xargs -n1 -I % gh api repos/$user/$repo/actions/runs/% -X DELETE
+          --paginate -q '.workflow_runs[] | select(.head_branch != "main") | "\(.id)"' | \
+          xargs -n1 -I % gh api repos/tanekemgangdubois/mrcglobal1/actions/runs/% -X DELETE
