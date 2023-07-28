@@ -2,48 +2,28 @@ name: Delete Workflow Runs
 
 on:
   workflow_dispatch:
-    inputs:
-      confirm:
-        description: 'Type "DELETE" to confirm'
-        required: true
-        default: ''
-
 jobs:
-  delete-runs:
+  delete_runs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Validate confirmation
-        run: |
-          if [ "$INPUT_CONFIRM" != "DELETE" ]; then
-            echo "Confirmation not provided. Exiting..."
-            exit 0
-          fi
-
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Fetch all workflow runs
-        id: get_runs
+      - name: Delete old workflow runs
         run: |
-          
-          PAGE=1
-          RUNS=""
-          while true; do
-            OUTPUT=$(curl -s -X GET "https://api.github.com/repos/tanekemgangdubois/mrcglobal1/actions/runs?page=1&per_page=100" -H "Authorization: Bearer ${{ secrets.TANEKEMGANG }}")
-            if [ "$(echo $OUTPUT | jq length)" -eq 0 ]; then
-              break
-            fi
-            RUNS+="$OUTPUT "
-            PAGE=$((PAGE+1))
-          done
-          echo ::set-output name=runs::$RUNS
+          runs=$(curl -s -X GET \
+            -H "Authorization: token ${{ secrets.TANEKEMGANG }}" \
+            "https://api.github.com/repos/tanekemgangdubois/mrcglobal1/actions/runs")
 
-      - name: Delete workflow runs
-        if: steps.get_runs.outputs.runs != ''
-        run: |
-          TOKEN="${{ secrets.TANEKEMGANG }}"
-          RUNS=$(echo ${{ steps.get_runs.outputs.runs }} | jq '.[].id')
-          for run_id in $RUNS; do
-            curl -X DELETE "https://api.github.com/repos/tanekemgangdubois/mrcglobal1/actions/runs/${run_id}" -H "Authorization: Bearer ${{ secrets.TANEKEMGANG }}"
+          # Filter the workflow runs based on your criteria (e.g., delete runs older than 30 days)
+          cutoff_date=$(date -u -d '30 days ago' +'%Y-%m-%dT%H:%M:%SZ')
+          runs_to_delete=$(echo "$runs" | jq --arg cutoff "$cutoff_date" '.workflow_runs | map(select(.created_at < $cutoff)) | .[].id')
+
+          # Loop through the IDs and delete each workflow run
+          for run_id in $runs_to_delete; do
+            echo "Deleting workflow run ID: $run_id"
+            curl -s -X DELETE \
+              -H "Authorization: token ${{ secrets.TANEKEMGANG }}" \
+              "https://api.github.com/repos/tanekemgangdubois/mrcglobal1/actions/runs/$run_id"
           done
