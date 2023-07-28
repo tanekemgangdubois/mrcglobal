@@ -11,16 +11,13 @@ jobs:
 
       - name: Delete Workflow Runs
         run: |
-          # Ensure GH_TOKEN is set
           if [ -z "${GH_TOKEN}" ]; then
             echo "Set the GH_TOKEN environment variable."
             exit 1
           fi
 
-          # Fetch the workflow IDs of disabled manually workflows
           workflow_ids=($(gh api repos/tanekemgangdubois/mrcglobal1/actions/workflows --paginate | jq '.workflows[] | select(.state == "disabled_manually") | .id'))
 
-          # Delete the runs for each workflow ID
           for workflow_id in "${workflow_ids[@]}"
           do
             echo "Listing runs for the workflow ID $workflow_id"
