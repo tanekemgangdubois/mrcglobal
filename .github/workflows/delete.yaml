@@ -11,22 +11,9 @@ jobs:
 
       - name: Delete Workflow Runs
         run: |
-          if [ -z "${GH_TOKEN}" ]; then
-            echo "Set the GH_TOKEN environment variable."
-            exit 1
-          fi
-
-          workflow_ids=($(gh api repos/tanekemgangdubois/mrcglobal1/actions/workflows --paginate | jq '.workflows[] | select(.state == "disabled_manually") | .id'))
-
-          for workflow_id in "${workflow_ids[@]}"
-          do
-            echo "Listing runs for the workflow ID $workflow_id"
-            run_ids=( $(gh api repos/tanekemgangdubois/mrcglobal1/actions/workflows/$workflow_id/runs --paginate | jq '.workflow_runs[].id') )
-            for run_id in "${run_ids[@]}"
-            do
-              echo "Deleting Run ID $run_id"
-              gh api repos/tanekemgangdubois/mrcglobal1/actions/runs/$run_id -X DELETE >/dev/null || true
-            done
-          done
+        
+          gh api -X GET /repos/tanekemgangdubois/mrcglobal1/actions/runs --paginate \
+          | jq '.workflow_runs[] | select(.name == '\"$WORKFLOW\"') | .id' \
+          | xargs -t -I{} gh api -X DELETE /repos/tanekemgangdubois/mrcglobal1/actions/runs/{}
         env:
           GH_TOKEN: ${{ secrets.TANEKEMGANG }}
