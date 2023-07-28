@@ -13,7 +13,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.TANEKEMGANG }}
         run: |
-          WORKFLOW="test.yaml"
+          WORKFLOW="test.yml"
           
           gh api -X GET /repos/tanekemgangdubois/mrcglobal1/actions/runs --paginate \
           | jq --arg WORKFLOW "$WORKFLOW" '.workflow_runs[] | select(.name == $WORKFLOW) | .id' \
