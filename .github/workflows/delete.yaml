@@ -14,5 +14,5 @@ jobs:
           GH_TOKEN: ${{ secrets.TANEKEMGANG }}
         run: |       
           gh api -X GET /repos/tanekemgangdubois/mrcglobal1/actions/runs --paginate \
-          | jq --arg WORKFLOW "test.yaml" '.workflow_runs[] | select(.name == "test.yaml") | .id' \
+          | jq --arg WORKFLOW "test.yaml" '.workflow_runs[] | select(.name == test.yaml) | .id' \
           | xargs -t -I{} gh api -X DELETE /repos/tanekemgangdubois/mrcglobal1/actions/runs/{}
