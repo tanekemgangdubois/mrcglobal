@@ -12,7 +12,12 @@ jobs:
       - name: Delete Workflow Runs
         env:
           GH_TOKEN: ${{ secrets.TANEKEMGANG }}
-        run: |       
+        run: |
+          WORKFLOW="test.yaml"
+          
           gh api -X GET /repos/tanekemgangdubois/mrcglobal1/actions/runs --paginate \
-          | jq --arg WORKFLOW "test.yaml" '.workflow_runs[] | select(.name == test.yaml) | .id' \
-          | xargs -t -I{} gh api -X DELETE /repos/tanekemgangdubois/mrcglobal1/actions/runs/{}
+          | jq --arg WORKFLOW "$WORKFLOW" '.workflow_runs[] | select(.name == $WORKFLOW) | .id' \
+          | while read -r run_id; do
+              echo "Deleting Run ID $run_id"
+              gh api -X DELETE "/repos/tanekemgangdubois/mrcglobal1/actions/runs/$run_id"
+            done
