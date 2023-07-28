@@ -1,23 +1,49 @@
-name: delete
+name: Delete Workflow Runs
 
 on:
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "DELETE" to confirm'
+        required: true
+        default: ''
 
 jobs:
-  check-bats-version:
+  delete-runs:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
 
-      - name: Delete Workflow Runs
-        env:
-          GH_TOKEN: ${{ secrets.TANEKEMGANG }}
+    steps:
+      - name: Validate confirmation
         run: |
-          WORKFLOW="test.yml"
-          
-          gh api -X GET /repos/tanekemgangdubois/mrcglobal1/actions/runs --paginate \
-          | jq --arg WORKFLOW "$WORKFLOW" '.workflow_runs[] | select(.name == $WORKFLOW) | .id' \
-          | while read -r run_id; do
-              echo "Deleting Run ID $run_id"
-              gh api -X DELETE "/repos/tanekemgangdubois/mrcglobal1/actions/runs/$run_id"
-            done
+          if [ "$INPUT_CONFIRM" != "DELETE" ]; then
+            echo "Confirmation not provided. Exiting..."
+            exit 0
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Fetch all workflow runs
+        id: get_runs
+        run: |
+          TOKEN="${{ secrets.TANEKEMGANG }}"
+          PAGE=1
+          RUNS=""
+          while true; do
+            OUTPUT=$(curl -s -X GET "https://api.github.com/repos/tanekemgangdubois/mrcglobal1/actions/runs?page=${PAGE}&per_page=100" -H "Authorization: Bearer $TOKEN")
+            if [ "$(echo $OUTPUT | jq length)" -eq 0 ]; then
+              break
+            fi
+            RUNS+="$OUTPUT "
+            PAGE=$((PAGE+1))
+          done
+          echo ::set-output name=runs::$RUNS
+
+      - name: Delete workflow runs
+        if: steps.get_runs.outputs.runs != ''
+        run: |
+          TOKEN="${{ secrets.TANEKEMGANG }}"
+          RUNS=$(echo ${{ steps.get_runs.outputs.runs }} | jq '.[].id')
+          for run_id in $RUNS; do
+            curl -X DELETE "https://api.github.com/repos/tanekemgangdubois/mrcglobal1/actions/runs/${run_id}" -H "Authorization: Bearer $TOKEN"
+          done
